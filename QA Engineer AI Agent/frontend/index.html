@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>QA Intelligence | Agent Workspace</title>
+    <style>
+        body { font-family: 'Segoe UI', monospace; background: #0f0f12; color: #e0e0e0; margin: 0; display: flex; height: 100vh; }
+        .sidebar { width: 250px; background: #18181b; padding: 20px; border-right: 1px solid #27272a; }
+        .main { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+        .header { font-size: 20px; font-weight: bold; color: #10b981; margin-bottom: 20px; display: flex; justify-content: space-between; }
+        .live-monitor { background: #000; height: 300px; border: 1px solid #333; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; color: #555; }
+        .console { background: #1e1e1e; padding: 15px; border-radius: 5px; flex: 1; font-family: 'Consolas', monospace; overflow-y: auto; color: #a1a1aa; border: 1px solid #333;}
+        .status-badge { background: #333; padding: 5px 10px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h3>QA OVERSIGHT</h3>
+        <p>Agent Status: <span id="agent-state">Initializing...</span></p>
+        <hr style="border-color: #333;">
+        <p> Active Tools:</p>
+        <ul>
+            <li>👁️ Gemini Vision</li>
+            <li>✋ Playwright</li>
+            <li>🧠 ChromaDB</li>
+        </ul>
+    </div>
+    <div class="main">
+        <div class="header">
+            <div>Test Automation Deck</div>
+            <div id="system-connection" class="status-badge">Checking Connectivity...</div>
+        </div>
+        
+        <!-- This is where we will eventually stream the browser view -->
+        <div class="live-monitor">
+            [Live Browser Stream Offline - Waiting for Agent]
+        </div>
+
+        <div class="console" id="console-log">
+            > System Boot initiated...<br>
+            > QA Sandbox mounted at /sandbox/...<br>
+        </div>
+    </div>
+
+    <script>
+        fetch('http://localhost:8001/health')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('system-connection').innerText = "🟢 Online: Port 8001";
+                document.getElementById('system-connection').style.color = "#10b981";
+                document.getElementById('agent-state').innerText = "Idle";
+            })
+            .catch(err => {
+                document.getElementById('system-connection').innerText = "🔴 Offline";
+                document.getElementById('system-connection').style.color = "#ef4444";
+            });
+    </script>
+</body>
+</html>

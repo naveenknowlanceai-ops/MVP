@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PM-OS | Agent Workspace</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: #fff; margin: 0; display: flex; height: 100vh; }
+        .sidebar { width: 250px; background: #2d2d2d; padding: 20px; border-right: 1px solid #333; }
+        .main { flex: 1; padding: 40px; display: flex; flex-direction: column; }
+        .header { font-size: 24px; font-weight: bold; color: #4A90E2; margin-bottom: 20px; }
+        .status { padding: 10px; background: #333; border-radius: 5px; color: #00ff00; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h3>PM-OS</h3>
+        <p>Project: Alpha</p>
+        <p>Agent: Idle</p>
+    </div>
+    <div class="main">
+        <div class="header">Product Manager Agent</div>
+        <div class="status" id="system-status">Checking System Connection...</div>
+    </div>
+
+    <script>
+        // Simple health check on load
+        fetch('http://localhost:8000/health')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('system-status').innerText = 
+                    `System: ${data.status} | Hardware: ${data.hardware_acceleration}`;
+            })
+            .catch(err => {
+                document.getElementById('system-status').innerText = "❌ Backend Disconnected";
+                document.getElementById('system-status').style.color = "red";
+            });
+    </script>
+</body>
+</html>

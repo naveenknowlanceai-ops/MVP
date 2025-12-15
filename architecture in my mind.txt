@@ -1,0 +1,153 @@
+Software Galaxy - Product Architecture
+1. Product Type Decision
+Recommendation: Hybrid Desktop + Web
+Component	Type	Why
+Agent Runtime	Desktop App (Electron)	Runs locally, connects to user's tools (IDE, Git, Docker), lower latency
+Dashboard/Management	Web App	Team collaboration, sprint boards, monitoring from anywhere
+Tool Connections	MCP Servers (Local)	Agents + humans use SAME tool connections
+┌─────────────────────────────────────────────────────────────────────┐
+│                    DESKTOP APP (Electron)                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐  │
+│  │ Agent Panel │  │ Tool Status │  │ Embedded Web Dashboard      │  │
+│  │ (Start/Stop)│  │ (Connected) │  │ (Sprint Board, Monitoring)  │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────────────┘  │
+│                                                                      │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │              LOCAL MCP SERVER HUB                              │  │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │  │
+│  │  │ GitHub  │ │  Jira   │ │ Figma   │ │ VS Code │ │ Docker  │  │  │
+│  │  │  MCP    │ │  MCP    │ │  MCP    │ │  MCP    │ │  MCP    │  │  │
+│  │  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘  │  │
+│  │       │           │           │           │           │        │  │
+│  │  ┌────▼───────────▼───────────▼───────────▼───────────▼────┐  │  │
+│  │  │          SHARED TOOL CONNECTION LAYER                   │  │  │
+│  │  │    (Both AI Agents AND Humans use same connections)     │  │  │
+│  │  └────────────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                              │                                       │
+│              ┌───────────────┼───────────────┐                       │
+│              ▼               ▼               ▼                       │
+│         AI AGENTS       HUMAN USERS     AUTOMATION                   │
+│        (via A2A)       (via Desktop UI)  (via n8n)                   │
+└─────────────────────────────────────────────────────────────────────┘
+2. Core Technology Stack
+Agent Orchestration Layer
+Purpose	Technology	Why
+Agent Framework	LangGraph	State machines for multi-agent workflows, better than LangChain for complex agent coordination
+Agent-to-Agent	A2A Protocol	Google's standard for agents calling other agents
+Tool Connections	MCP (Model Context Protocol)	Anthropic's standard - single connection used by both agents AND humans
+Workflow Automation	n8n (self-hosted)	Visual workflows for non-dev users, connects everything
+Application Layer
+Purpose	Technology	Why
+Desktop App	Electron + React	Cross-platform (Win/Mac/Linux), embeds web UI
+Web Dashboard	Next.js 14 + React	Fast, SEO, works embedded in Electron
+Styling	Tailwind CSS + shadcn/ui	Modern, consistent design
+Real-time	Socket.io	Agent status, notifications
+Backend Layer
+Purpose	Technology	Why
+API Server	FastAPI (Python)	Fast, async, great for AI workloads
+Agent Runtime	Python 3.11+	LLM ecosystem is Python-first
+Task Queue	Celery + Redis	Background agent tasks
+Database	PostgreSQL + SQLite	Postgres (cloud), SQLite (local cache)
+AI/LLM Layer
+Purpose	Technology	Why
+LLM Providers	OpenAI, Anthropic, Google	Multi-provider with fallback
+Embeddings	OpenAI Ada / Local (Ollama)	For RAG over codebase
+Vector Store	ChromaDB (local)	Runs with desktop app
+3. How Agents + Humans Share Tools (MCP Architecture)
+┌─────────────────────────────────────────────────────────────────┐
+│                     MCP SERVER HUB (Local)                      │
+│                                                                  │
+│   Each tool has ONE MCP server. Multiple clients connect to it. │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                    GitHub MCP Server                      │   │
+│  │  - Manages GitHub OAuth token                             │   │
+│  │  - Exposes: clone, push, create_pr, read_issues           │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│          ▲                    ▲                    ▲             │
+│          │                    │                    │             │
+│    ┌─────┴─────┐        ┌─────┴─────┐        ┌─────┴─────┐      │
+│    │ Dev Agent │        │ Human Dev │        │ QA Agent  │      │
+│    │ (AI)      │        │ (Desktop) │        │ (AI)      │      │
+│    └───────────┘        └───────────┘        └───────────┘      │
+│                                                                  │
+│  Same pattern for: Jira, Figma, Docker, VS Code, Slack, etc.   │
+└─────────────────────────────────────────────────────────────────┘
+Key Insight: MCP servers act as a shared gateway. When a human connects Jira once, all agents automatically have access. No separate agent credentials needed.
+
+4. Agent Communication (A2A Protocol)
+┌────────────────────────────────────────────────────────────────┐
+│                    A2A AGENT NETWORK                           │
+│                                                                 │
+│   ┌─────────┐    request_design    ┌─────────────┐             │
+│   │   PM    │ ──────────────────▶  │  Architect  │             │
+│   │  Agent  │                      │    Agent    │             │
+│   └────┬────┘                      └──────┬──────┘             │
+│        │                                  │                     │
+│        │ assign_task                      │ design_ready        │
+│        ▼                                  ▼                     │
+│   ┌─────────┐    code_review       ┌─────────┐                 │
+│   │   Dev   │ ◀────────────────    │   QA    │                 │
+│   │  Agent  │                      │  Agent  │                 │
+│   └────┬────┘                      └────┬────┘                 │
+│        │                                │                       │
+│        │ deploy_request                 │ tests_passed          │
+│        ▼                                ▼                       │
+│   ┌───────────────────────────────────────┐                    │
+│   │            DevOps Agent               │                    │
+│   └───────────────────────────────────────┘                    │
+│                                                                 │
+│   Protocol: JSON-RPC over WebSocket (A2A standard)             │
+└────────────────────────────────────────────────────────────────┘
+5. Complete Technology Map
+Software Galaxy
+Desktop App
+Electron
+React
+Local MCP Hub
+ChromaDB
+SQLite Cache
+Web Dashboard
+Next.js 14
+React 18
+Tailwind CSS
+shadcn/ui
+Socket.io
+Backend API
+FastAPI
+Python 3.11
+Celery
+Redis
+PostgreSQL
+Agent System
+LangGraph
+A2A Protocol
+MCP Servers
+n8n Workflows
+LLM Providers
+OpenAI GPT-4
+Anthropic Claude
+Google Gemini
+Ollama Local
+Tool Integrations
+GitHub MCP
+Jira MCP
+Figma MCP
+VS Code MCP
+Docker MCP
+Slack MCP
+6. Summary: What to Build
+Layer	Technology	Notes
+Desktop App	Electron + React	Runs agents locally, MCP hub
+Web Dashboard	Next.js + React	Embedded in Electron + standalone
+Backend	FastAPI + Python	Agent logic, API endpoints
+Agent Framework	LangGraph	Multi-agent orchestration
+Tool Protocol	MCP	Shared agent + human tool access
+Agent Protocol	A2A	Agent-to-agent communication
+Automation	n8n	No-code workflow builder
+LLMs	OpenAI + Claude + Gemini	Multi-provider with fallback
+Database	PostgreSQL + SQLite	Cloud + local cache
+Real-time	Socket.io + Redis	Live updates
+IMPORTANT
+Key Architecture Decision: Desktop-first with embedded web. This allows agents to access local tools (IDE, Git, Docker) while keeping the collaborative dashboard accessible from anywhere.

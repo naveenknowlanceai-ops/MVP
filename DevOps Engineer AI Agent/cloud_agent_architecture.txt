@@ -1,0 +1,28 @@
+graph TD
+    User[Human DevOps Lead] --> UI[Ops Dashboard (Web Terminal)]
+    
+    subgraph "Control Plane (FastAPI)"
+        UI -- WebSocket (Commands) --> API
+        API -- Streams Logs --> UI
+    end
+
+    subgraph "The Neural Core (LangGraph)"
+        API --> Orchestrator[Master Orchestrator]
+        Orchestrator --> State[Infra State (SQLite/Redis)]
+        
+        Orchestrator -- "1. Design" --> Architect[Architect Agent]
+        Orchestrator -- "2. Code" --> IAC[IaC Developer Agent]
+        Orchestrator -- "3. Validate" --> SecOps[Security Auditor Agent]
+    end
+
+    subgraph "The Hands (MCP Layer)"
+        IAC --> MCP_TF[MCP: Terraform/OpenTofu]
+        IAC --> MCP_K8S[MCP: Kubernetes]
+        SecOps --> MCP_SCAN[MCP: Trivy/GCloud Security]
+    end
+
+    subgraph "Infrastructure (Google Cloud)"
+        MCP_TF -- Applies --> GCP_Res[Compute/Networking]
+        MCP_K8S -- Deploys --> GKE[Google Kubernetes Engine]
+        VertexAI[Gemini 1.5 Pro] -- Reasoning --> Architect
+    end

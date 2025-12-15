@@ -1,0 +1,25 @@
+# Server & Async IO
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+websockets==12.0
+aiofiles==23.2.1
+
+# AI & Cloud Reasoning (Vertex AI)
+langchain==0.1.9
+langchain-google-vertexai==0.0.5
+google-cloud-aiplatform==1.42.0
+
+# Agent Orchestration
+langgraph==0.0.24
+langchain-core==0.1.26
+
+# Local Intelligence (Embeddings)
+chromadb==0.4.22
+sentence-transformers==2.2.2
+
+# Developer Tools Integration
+docker==7.0.0
+watchdog==4.0.0 # For watching file changes live
+pydantic==2.6.1
+pydantic-settings==2.1.0
+python-dotenv==1.0.1
