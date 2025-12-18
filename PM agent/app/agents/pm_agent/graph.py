@@ -1,119 +1,112 @@
-import operator
-from typing import Annotated, Any, Dict
 from langgraph.graph import StateGraph, END
 from langchain_google_vertexai import ChatVertexAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import SystemMessage, HumanMessage
-
+from langchain_core.messages import HumanMessage
 from app.core.config import settings
 from app.agents.pm_agent.state import AgentState
 from app.services.rag_service import rag_service
 
-# --- 1. SETUP MODEL ---
-# We use the Cloud Model defined in config (Gemini 1.5 Pro)
+# --- 1. IMPORT GOOGLE PROTOBUF TYPES ---
+# We need the raw objects to bypass LangChain's dictionary validation
+try:
+    from google.cloud.aiplatform_v1beta1.types import Tool, GoogleSearchRetrieval
+except ImportError:
+    # Fallback for older environments, though your reqs should have this
+    from google.cloud.aiplatform_v1.types import Tool, GoogleSearchRetrieval
+
+# --- 2. MODEL SETUP ---
 llm = ChatVertexAI(
     model_name=settings.MODEL_NAME,
-    temperature=0.3, # Low temperature for professional, consistent output
-    max_output_tokens=8192,
+    temperature=0.3,
     project=settings.GOOGLE_CLOUD_PROJECT,
-    location=settings.GOOGLE_CLOUD_LOCATION
+    location=settings.GOOGLE_CLOUD_LOCATION,
+    max_output_tokens=8192,
 )
 
-# --- 2. DEFINE NODES ---
+# --- 3. NODES ---
 
-def retrieve_knowledge_node(state: AgentState):
-    """
-    Step 1: Consult the 'Bible' (Your uploaded markdown).
-    This ensures the agent acts like *YOU* want, not just a generic AI.
-    """
-    print(f"--- 🧠 RECALLING: {state['current_task']} ---")
-    
-    # Search the vector DB for relevant PM practices
-    query = state['current_task']
-    docs = rag_service.search(query, k=3)
-    
-    # Collapse docs into a single string
-    context_str = "\n\n".join([d.page_content for d in docs])
-    
-    return {"rag_context": context_str}
+def retrieve_node(state: AgentState):
+    """Retrieves INTERNAL context"""
+    print(f"[AGENT] 🧠 Checking Internal Knowledge for: {state['current_task']}")
+    try:
+        docs = rag_service.search(state['current_task'])
+        context = "\n\n".join([d.page_content for d in docs])
+    except:
+        context = "No specific internal guidelines found."
+    return {"rag_context": context}
 
-def drafter_node(state: AgentState):
+def draft_node(state: AgentState):
+    """Generates the PRD using Internal Knowledge + Google Search"""
+    print("[AGENT] 🌍 Researching & Drafting (using Google Grounding)...")
+    
+    # --- CRITICAL FIX: CREATE PROTOBUF OBJECT ---
+    # Instead of a dict, we create the actual Google Tool object.
+    # This prevents the "REQUIRED_FIELD_MISSING" error.
+    
+    try:
+        # We try to use the 'google_search_retrieval' field (Standard)
+        # If the API complains again about "use google_search", we will catch it.
+        tool_config = Tool(
+            google_search_retrieval=GoogleSearchRetrieval()
+        )
+    except Exception:
+        # Fallback if the SDK is very new and expects different kwargs
+        tool_config = None
+        print("[WARNING] Could not construct Google Search Tool object.")
+
+    prompt = f"""
+    [ROLE]
+    You are an Expert Product Manager.
+    
+    [INTERNAL KNOWLEDGE]
+    {state['rag_context']}
+    
+    [TASK]
+    {state['current_task']}
+    
+    [INSTRUCTIONS]
+    1. Write a detailed Product Requirements Document (PRD).
+    2. USE GOOGLE SEARCH to find current competitors, market trends, or technical standards.
+    3. INTEGRATE the search findings into the content.
+    4. Output strictly Markdown.
     """
-    Step 2: The Core Writing Engine.
-    Generates the PRD based on User Input + RAG Context + Previous Feedback.
-    """
-    print("--- ✍️ DRAFTING CONTENT ---")
     
-    task = state['current_task']
-    context = state['rag_context']
-    current_doc = state.get('prd_content', "")
-    feedback = state.get('human_feedback', "")
-    
-    # Dynamic Prompt Construction
-    system_prompt = f"""
-    You are an Expert Product Manager Agent.
-    
-    YOUR KNOWLEDGE BASE (Best Practices):
-    {context}
-    
-    INSTRUCTIONS:
-    1. You are drafting a Product Requirements Document (PRD).
-    2. Output strictly in MARKDOWN format.
-    3. Be professional, concise, and metric-driven.
-    4. If there is existing content, you are UPDATING it based on feedback.
-    """
-    
-    if feedback:
-        user_message = f"""
-        UPDATE this PRD based on my feedback.
+    if state.get("human_feedback"):
+        prompt += f"""
+        [FEEDBACK]
+        Refine based on: {state['human_feedback']}
         
-        CURRENT DRAFT:
-        {current_doc}
-        
-        MY FEEDBACK:
-        {feedback}
-        
-        Only output the updated Markdown.
+        [PREVIOUS DRAFT]
+        {state.get('prd_content')}
         """
-    else:
-        user_message = f"""
-        Draft a new PRD for this request: "{task}"
+    
+    try:
+        # Bind the PROTOBUF object, not a dict
+        if tool_config:
+            llm_with_search = llm.bind(tools=[tool_config])
+            response = llm_with_search.invoke([HumanMessage(content=prompt)])
+        else:
+            response = llm.invoke([HumanMessage(content=prompt)])
+            
+        content = response.content
         
-        Include:
-        - Problem Statement
-        - Target Audience
-        - User Stories
-        - Success Metrics (KPIs)
-        """
+    except Exception as e:
+        print(f"[WARNING] Grounding failed: {e}. Falling back to standard generation.")
+        response = llm.invoke([HumanMessage(content=prompt)])
+        content = response.content
 
-    # Invoke Gemini
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_message)
-    ]
-    
-    response = llm.invoke(messages)
-    
     return {
-        "prd_content": response.content,
-        "revision_count": state.get("revision_count", 0) + 1,
-        "human_feedback": "" # Clear feedback after handling it
+        "prd_content": content,
+        "human_feedback": "" 
     }
 
-# --- 3. BUILD THE GRAPH ---
-
+# --- 4. WORKFLOW ---
 workflow = StateGraph(AgentState)
 
-# Add Nodes
-workflow.add_node("retrieve", retrieve_knowledge_node)
-workflow.add_node("draft", drafter_node)
+workflow.add_node("retrieve", retrieve_node)
+workflow.add_node("draft", draft_node)
 
-# Add Edges
-# Flow: Start -> Retrieve Knowledge -> Draft -> End (Wait for Human)
 workflow.set_entry_point("retrieve")
 workflow.add_edge("retrieve", "draft")
 workflow.add_edge("draft", END)
 
-# Compile
-# We don't use MemorySaver here yet because the State is managed by the API/Frontend
 pm_graph = workflow.compile()

@@ -1,7 +1,7 @@
 import os
 import sys
 
-# Fix Windows Output Encoding (Prevents crashes)
+# Fix Windows Output Encoding
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
 
@@ -13,7 +13,6 @@ from app.core.config import settings
 
 class RAGService:
     def __init__(self):
-        # Initialize Embeddings
         self.embeddings = VertexAIEmbeddings(
             model_name=settings.EMBEDDING_MODEL_NAME,
             project=settings.GOOGLE_CLOUD_PROJECT,
@@ -23,31 +22,27 @@ class RAGService:
         self.persist_path = settings.CHROMA_PERSIST_DIRECTORY
 
     def initialize_db(self):
-        """Connects to the DB."""
         self.db = Chroma(
             persist_directory=self.persist_path,
             embedding_function=self.embeddings
         )
-        print(f"[INFO] RAG Brain Connected at {self.persist_path}")
+        print(f"[INFO] Architect Brain Connected at {self.persist_path}")
 
     def ingest_knowledge(self, file_path: str):
-        """Loads data."""
-        print(f"[INFO] Loading: {file_path}")
+        print(f"[INFO] Loading Knowledge: {file_path}")
         try:
-            # Force UTF-8 to avoid reading errors
             loader = TextLoader(file_path, encoding='utf-8')
             documents = loader.load()
             
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
             chunks = text_splitter.split_documents(documents)
             
-            # Create/Update DB
             self.db = Chroma.from_documents(
                 documents=chunks,
                 embedding=self.embeddings,
                 persist_directory=self.persist_path
             )
-            print(f"[SUCCESS] Ingested {len(chunks)} chunks.")
+            print(f"[SUCCESS] Ingested {len(chunks)} architectural patterns.")
         except Exception as e:
             print(f"[ERROR] Ingestion Failed: {e}")
 

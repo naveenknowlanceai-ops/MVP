@@ -2,38 +2,172 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>PM-OS | Agent Workspace</title>
+    <title>PM Agent</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: #fff; margin: 0; display: flex; height: 100vh; }
-        .sidebar { width: 250px; background: #2d2d2d; padding: 20px; border-right: 1px solid #333; }
-        .main { flex: 1; padding: 40px; display: flex; flex-direction: column; }
-        .header { font-size: 24px; font-weight: bold; color: #4A90E2; margin-bottom: 20px; }
-        .status { padding: 10px; background: #333; border-radius: 5px; color: #00ff00; }
+        /* CSS STYLES */
+        body { margin: 0; display: flex; height: 100vh; background: #1e1e1e; color: #fff; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { width: 220px; background: #252526; padding: 20px; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .brand { font-size: 1.2rem; font-weight: bold; color: #4A90E2; margin-bottom: 20px; }
+        .status { font-size: 0.9rem; margin-top: auto; color: #888; }
+        .workspace { flex: 1; display: flex; }
+        
+        /* Left: Chat */
+        .chat-panel { width: 40%; display: flex; flex-direction: column; border-right: 1px solid #333; background: #1e1e1e; }
+        .history { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .input-area { padding: 20px; border-top: 1px solid #333; display: flex; gap: 10px; background: #252526; }
+        
+        /* Right: Editor */
+        .doc-panel { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; }
+        .toolbar { padding: 10px 20px; background: #2d2d2d; border-bottom: 1px solid #333; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        textarea { border: none; color: #fff; padding: 10px; resize: none; outline: none; border-radius: 4px; font-family: 'Consolas', monospace; }
+        
+        /* Inputs */
+        #user-input { flex: 1; height: 50px; background: #333; }
+        #prd-editor { flex: 1; padding: 20px; background: #1e1e1e; line-height: 1.6; font-size: 14px; }
+        button { background: #007acc; color: white; border: none; padding: 0 20px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        button:disabled { background: #444; cursor: not-allowed; }
+        button:hover:not(:disabled) { background: #0062a3; }
+
+        /* Messages */
+        .msg { padding: 10px 15px; border-radius: 6px; max-width: 90%; line-height: 1.4; }
+        .msg-user { background: #333; align-self: flex-end; }
+        .msg-agent { background: #252526; align-self: flex-start; border-left: 3px solid #007acc; }
+        .msg-error { background: #3e2020; border-left: 3px solid #ff4444; }
+        
+        /* Loading */
+        .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 5px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+
     <div class="sidebar">
-        <h3>PM-OS</h3>
-        <p>Project: Alpha</p>
-        <p>Agent: Idle</p>
-    </div>
-    <div class="main">
-        <div class="header">Product Manager Agent</div>
-        <div class="status" id="system-status">Checking System Connection...</div>
+        <div class="brand">PM AGENT <span style="font-weight:normal; font-size:0.8em">v1.0</span></div>
+        <div>
+            <div style="padding: 10px; background: #333; border-radius: 5px; margin-bottom: 5px;">📝 PRD Drafter</div>
+        </div>
+        <div class="status">
+            System: <span id="sys-status" style="color: yellow">Connecting...</span>
+        </div>
     </div>
 
-    <script>
-        // Simple health check on load
-        fetch('http://localhost:8000/health')
-            .then(response => response.json())
+    <div class="workspace">
+        <!-- LEFT: CHAT -->
+        <div class="chat-panel">
+            <div id="chat-history" class="history">
+                <div class="msg msg-agent">Hello! I am your Product Manager Agent. Describe a feature, and I will draft the specs using our internal best practices.</div>
+            </div>
+            <div class="input-area">
+                <textarea id="user-input" placeholder="E.g. Create a dark mode feature for the mobile app..." onkeypress="handleEnter(event)"></textarea>
+                <button id="send-btn" onclick="runAgent()">RUN</button>
+            </div>
+        </div>
+
+        <!-- RIGHT: EDITOR -->
+        <div class="doc-panel">
+            <div class="toolbar">
+                <span>📄 LIVE PRD</span>
+                <button style="font-size: 0.8rem; padding: 5px 10px; background: #4caf50;" onclick="download()">💾 Save .MD</button>
+            </div>
+            <textarea id="prd-editor" placeholder="The Agent will write the document here. You can edit this text manually to override the agent."></textarea>
+        </div>
+    </div>
+
+   <script>
+        const API_URL = "http://localhost:8010/api/v1/agent/run";
+        
+        // --- SESSION MANAGEMENT ---
+        // Generate or retrieve a Thread ID from LocalStorage
+        let threadId = localStorage.getItem("pm_agent_thread_id");
+        if (!threadId) {
+            threadId = "session_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem("pm_agent_thread_id", threadId);
+        }
+        console.log("Current Session:", threadId);
+
+        const statusEl = document.getElementById('sys-status');
+        const historyEl = document.getElementById('chat-history');
+        const inputEl = document.getElementById('user-input');
+        const editorEl = document.getElementById('prd-editor');
+        const btnEl = document.getElementById('send-btn');
+
+        // Health Check
+        fetch('http://localhost:8010/health')
+            .then(res => res.json())
             .then(data => {
-                document.getElementById('system-status').innerText = 
-                    `System: ${data.status} | Hardware: ${data.hardware_acceleration}`;
+                statusEl.innerText = "ONLINE";
+                statusEl.style.color = "#4caf50";
             })
             .catch(err => {
-                document.getElementById('system-status').innerText = "❌ Backend Disconnected";
-                document.getElementById('system-status').style.color = "red";
+                statusEl.innerText = "OFFLINE";
+                statusEl.style.color = "#ff4444";
             });
+
+        function handleEnter(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                runAgent();
+            }
+        }
+
+        async function runAgent() {
+            const task = inputEl.value.trim();
+            const currentDoc = editorEl.value;
+
+            if (!task) return;
+
+            addMsg("User", task);
+            inputEl.value = "";
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<span class="spinner"></span> Thinking...';
+            editorEl.style.opacity = "0.6";
+
+            try {
+                // PAYLOAD WITH THREAD_ID
+                const payload = {
+                    thread_id: threadId,
+                    task: task,
+                    current_prd: currentDoc
+                };
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+
+                const data = await response.json();
+                
+                editorEl.value = data.prd_content;
+                addMsg("Agent", "I have updated the PRD based on our conversation.");
+
+            } catch (error) {
+                console.error(error);
+                addMsg("Error", "Failed to contact Agent.");
+            } finally {
+                btnEl.disabled = false;
+                btnEl.innerText = "RUN";
+                editorEl.style.opacity = "1";
+            }
+        }
+
+        function addMsg(role, text) {
+            const div = document.createElement('div');
+            div.className = `msg msg-${role.toLowerCase()}`;
+            div.innerText = text;
+            historyEl.appendChild(div);
+            historyEl.scrollTop = historyEl.scrollHeight;
+        }
+
+        function download() {
+            const blob = new Blob([editorEl.value], {type: 'text/markdown'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = "PRD_Draft.md";
+            a.click();
+        }
     </script>
 </body>
 </html>
