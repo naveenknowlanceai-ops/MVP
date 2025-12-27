@@ -2,93 +2,38 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>DevOps Engineer Agent | Control Plane</title>
-    <style>
-        :root { --bg: #0d1117; --term-bg: #161b22; --text: #c9d1d9; --accent: #238636; --danger: #da3633; }
-        body { font-family: 'Consolas', 'Monaco', monospace; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        
-        .sidebar { width: 300px; background: var(--term-bg); border-right: 1px solid #30363d; padding: 20px; display: flex; flex-direction: column; }
-        .workspace { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-        
-        .terminal-window { flex: 1; background: #000; border: 1px solid #30363d; border-radius: 6px; padding: 15px; overflow-y: auto; font-family: 'Courier New', monospace; }
-        .log-entry { margin-bottom: 5px; }
-        .agent-msg { color: #58a6ff; }
-        .sys-msg { color: #8b949e; font-style: italic; }
-        .danger-msg { color: var(--danger); font-weight: bold; }
-
-        .status-badge { background: var(--accent); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
-        .controls { display: flex; gap: 10px; margin-top: auto; }
-        button { background: #21262d; color: white; border: 1px solid #30363d; padding: 8px; cursor: pointer; border-radius: 4px; flex: 1; }
-        button:hover { background: #30363d; }
-    </style>
+    <title>OMNI-OPS | Engineer Console</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="sidebar">
-        <h3>PROJECT: OMNI-OPS</h3>
-        <p>AGENT: <span class="status-badge">ONLINE</span></p>
-        <div id="diagnostics">
-            <small>CPU: ULTRA 9</small><br>
-            <small>GPU: RTX 5060 Ti</small>
-        </div>
-        
-        <div class="controls">
-            <button onclick="sendPing()">PING SYSTEM</button>
-            <button style="border-color: var(--danger); color: var(--danger)">EMERGENCY STOP</button>
+        <div class="brand">OMNI-OPS</div>
+        <div class="status-panel">
+            <small>TARGET CLOUD</small>
+            <div id="project-id">GOOGLE CLOUD</div>
+            <small>STATUS</small>
+            <div id="sys-status" style="color: green">CONNECTING...</div>
         </div>
     </div>
-    
+
     <div class="workspace">
-        <!-- Visualization Area -->
-        <div style="height: 30%; border: 1px dashed #30363d; display: flex; align-items: center; justify-content: center; color: #8b949e;">
-            [ INFRASTRUCTURE TOPOLOGY VISUALIZER ]
-        </div>
-
-        <!-- Terminal Output -->
-        <div class="terminal-window" id="terminal">
-            <div class="log-entry sys-msg">> ESTABLISHING SECURE CONNECTION...</div>
+        <div class="terminal-container">
+            <div class="term-header">COMMAND LINE (Secure)</div>
+            <div id="terminal-history" class="history"></div>
+            <div class="input-line">
+                <span>>></span>
+                <input type="text" id="cmd-input" placeholder="Initialize infrastructure mission...">
+            </div>
         </div>
         
-        <!-- Input -->
-        <input type="text" id="commandInput" placeholder="Give orders to the infrastructure agent..." 
-               style="background: #0d1117; border: 1px solid #30363d; color: white; padding: 10px; width: 98%;"
-               onkeypress="handleInput(event)">
+        <div class="editor-container">
+            <div class="term-header">INFRASTRUCTURE AS CODE (Main.tf)</div>
+            <textarea id="code-editor" placeholder="// Waiting for generated HCL..."></textarea>
+            <div class="action-bar">
+                <button id="intercept-btn">INTERCEPT & REFINE</button>
+            </div>
+        </div>
     </div>
-
-<script>
-    const term = document.getElementById('terminal');
-    
-    // Connect to WebSocket
-    const ws = new WebSocket("ws://localhost:8001/ws/thoughts");
-
-    ws.onmessage = function(event) {
-        const msg = document.createElement('div');
-        msg.className = 'log-entry agent-msg';
-        msg.innerText = event.data;
-        term.appendChild(msg);
-        term.scrollTop = term.scrollHeight;
-    };
-
-    function handleInput(e) {
-        if(e.key === 'Enter') {
-            const val = e.target.value;
-            ws.send(val);
-            const userMsg = document.createElement('div');
-            userMsg.className = 'log-entry';
-            userMsg.innerText = "> " + val;
-            term.appendChild(userMsg);
-            e.target.value = '';
-        }
-    }
-    
-    // Check Health
-    fetch('http://localhost:8001/health')
-        .then(res => res.json())
-        .then(data => {
-            const div = document.createElement('div');
-            div.className = 'log-entry sys-msg';
-            div.innerHTML = `> DIAGNOSTIC COMPLETE: ${data.entity} is ${data.status}. <br>> MODE: ${data.mode}`;
-            term.appendChild(div);
-        });
-</script>
+    <script src="js/app.js"></script>
 </body>
 </html>

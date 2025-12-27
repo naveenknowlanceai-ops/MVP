@@ -1,25 +1,25 @@
-# Server & Async IO
-fastapi==0.109.2
-uvicorn[standard]==0.27.1
+# CORE SERVER
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
 websockets==12.0
 aiofiles==23.2.1
 
-# AI & Cloud Reasoning (Vertex AI)
-langchain==0.1.9
-langchain-google-vertexai==0.0.5
-google-cloud-aiplatform==1.42.0
+# GOOGLE CLOUD
+langchain-google-vertexai==1.0.5
+google-cloud-aiplatform==1.55.0
 
-# Agent Orchestration
-langgraph==0.0.24
-langchain-core==0.1.26
+# LANGCHAIN STABLE STACK (Matched to your working PM Agent)
+langchain==0.2.5
+langchain-core==0.2.9
+langchain-community==0.2.5
+langgraph==0.1.5
 
-# Local Intelligence (Embeddings)
-chromadb==0.4.22
-sentence-transformers==2.2.2
-
-# Developer Tools Integration
-docker==7.0.0
-watchdog==4.0.0 # For watching file changes live
-pydantic==2.6.1
-pydantic-settings==2.1.0
+# DATA & UTILS
+chromadb==0.5.0
+pydantic==2.7.4
+pydantic-settings==2.3.4
 python-dotenv==1.0.1
+
+# DEV AGENT SPECIFIC
+watchdog==4.0.0
+docker==7.1.0

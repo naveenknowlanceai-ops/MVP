@@ -1,46 +1,35 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.routers import ops_router
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
-# 1. Security & CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Tighten this in Prod
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 2. Mount The Ops Console
+# UI Mount
 app.mount("/ui", StaticFiles(directory="frontend", html=True), name="frontend")
 
-# 3. System Diagnostics (Health Check)
-@app.get("/health")
-def system_diagnostics():
-    return {
-        "entity": "DevOps_Engineer_AI_Agent",
-        "status": "ONLINE",
-        "hardware": "RTX 5060 Ti [DETECTED]",
-        "cloud_connection": "Ready",
-        "mode": "COWORKING (INTERCEPT ACTIVE)"
-    }
+# Router
+app.include_router(ops_router.router, prefix="/api/v1/ops", tags=["ops"])
 
-# 4. Neural Link (Websocket) - The "Thought Stream"
-@app.websocket("/ws/thoughts")
-async def thought_stream(websocket: WebSocket):
-    await websocket.accept()
-    await websocket.send_text("SYSTEM: Neural Link Established. Awaiting infrastructure mission...")
-    try:
-        while True:
-            data = await websocket.receive_text()
-            # This is where we will route commands to LangGraph later
-            await websocket.send_text(f"AGENT: Acknowledged '{data}'. Analyzing context...")
-    except Exception as e:
-        print(f"Link severed: {e}")
+@app.get("/health")
+def health_check():
+    return {
+        "status": "active", 
+        "agent": "DevOps Engineer",
+        "cloud": settings.GOOGLE_CLOUD_PROJECT
+    }
 
 if __name__ == "__main__":
     import uvicorn
-    print(f"--- DEPLOYING {settings.PROJECT_NAME} ---")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8001, reload=True)
+    print("DevOps Engineer AI Agent is starting...")
+    print("Listening on http://127.0.0.1:8050/ui")
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8050, reload=True)

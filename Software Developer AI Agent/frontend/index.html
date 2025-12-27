@@ -2,101 +2,229 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>DevAI | Omni Platform</title>
+    <title>DevAI | Omni Workstation</title>
     <style>
         :root {
             --bg-dark: #1e1e1e;
-            --bg-panel: #252526;
-            --text-main: #d4d4d4;
+            --bg-sidebar: #252526;
+            --border: #333;
             --accent: #007acc;
-            --terminal-bg: #121212;
-            --green: #2ecc71;
+            --text: #cccccc;
         }
-        body { 
-            font-family: 'Consolas', 'Monaco', monospace; 
-            background: var(--bg-dark); 
-            color: var(--text-main); 
-            margin: 0; 
-            height: 100vh;
-            display: grid;
-            grid-template-columns: 250px 1fr 300px; /* Sidebar | Editor | Context */
-        }
-        .sidebar { background: var(--bg-panel); border-right: 1px solid #333; padding: 10px; }
-        .editor-area { display: flex; flex-direction: column; padding: 20px; }
-        .terminal { 
-            height: 200px; 
-            background: var(--terminal-bg); 
-            border-top: 1px solid #333; 
-            padding: 10px; 
-            font-family: monospace;
-            color: #ccc;
-            overflow-y: auto;
-        }
-        .log-entry { margin: 5px 0; }
-        .log-entry.info { color: #61afef; }
-        .header { color: var(--accent); font-weight: bold; margin-bottom: 20px; }
-        .btn-cowork {
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 10px;
-            width: 100%;
-            cursor: pointer;
-            margin-top: 10px;
-        }
+        body { margin: 0; font-family: 'Segoe UI', monospace; background: var(--bg-dark); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+        
+        /* LAYOUT */
+        .sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .main { flex: 1; display: flex; flex-direction: column; position: relative; }
+        .editor-panel { height: 40%; border-top: 1px solid var(--border); background: #1a1a1a; display: flex; flex-direction: column; }
+
+        /* COMPONENTS */
+        .header { padding: 15px; font-weight: bold; color: var(--accent); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        
+        /* CHAT AREA */
+        #chat-window { flex: 1; overflow-y: auto; padding: 20px; font-size: 14px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
+        
+        .message { padding: 10px 15px; border-radius: 8px; max-width: 85%; line-height: 1.5; }
+        .user-msg { background: #2b2d31; border: 1px solid #444; align-self: flex-end; color: #fff; }
+        .agent-msg { background: #0e639c33; border: 1px solid #007acc; align-self: flex-start; }
+        .system-msg { color: #6a9955; font-size: 0.9em; font-style: italic; align-self: center; }
+
+        /* FILE EXPLORER */
+        .file-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .file-item { padding: 5px 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        .file-item:hover { background: #37373d; }
+        .file-item span { opacity: 0.8; }
+        
+        /* INPUT AREA */
+        .input-box { padding: 15px; background: var(--bg-sidebar); border-top: 1px solid var(--border); display: flex; gap: 10px; }
+        input { flex: 1; background: #3c3c3c; border: 1px solid #444; padding: 10px; color: white; border-radius: 4px; outline: none; }
+        input:focus { border-color: var(--accent); }
+        button { background: var(--accent); color: white; border: none; padding: 0 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:disabled { opacity: 0.6; cursor: wait; }
+
+        /* EDITOR PREVIEW */
+        .code-preview { flex: 1; background: #1a1a1a; color: #d4d4d4; padding: 15px; border: none; font-family: 'Consolas', monospace; resize: none; font-size: 12px; }
+        .panel-label { padding: 5px 10px; background: #333; font-size: 12px; font-weight: bold; }
+
     </style>
 </head>
 <body>
+
+    <!-- SIDEBAR: FILES -->
     <div class="sidebar">
-        <div class="header">> SDLC_DEV_AGENT</div>
-        <div>📁 File Explorer</div>
-        <br>
-        <div id="file-tree" style="opacity: 0.6; font-size: 0.9em;">
-            ./workspace_sandbox/
-            <br>└── (Empty)
+        <div class="header">
+            EXPLORER 
+            <span style="font-size:12px; cursor:pointer" onclick="refreshFiles()">🔄</span>
         </div>
-        <button class="btn-cowork" onclick="pingAgent()">Connect Workspace</button>
-    </div>
-
-    <div class="editor-area">
-        <h1>Dashboard</h1>
-        <div style="flex:1; border: 1px dashed #444; display: flex; align-items: center; justify-content: center; color: #555;">
-            Waiting for Ticket or Prompt...
-        </div>
-        <div class="terminal" id="terminal-output">
-            <div class="log-entry info">[SYSTEM] Initializing Neural Interface...</div>
+        <div id="file-list" class="file-list">
+            <div style="padding:10px; color:#666">Connecting...</div>
         </div>
     </div>
 
-    <div class="sidebar" style="border-left: 1px solid #333;">
-        <div>🧠 Reasoning Context</div>
-        <hr style="border-color: #444">
-        <div id="status-indicator" style="color: yellow">🟡 Standby</div>
+    <!-- MAIN: CHAT & WORKSPACE -->
+    <div class="main">
+        <div id="chat-window">
+            <div class="message system-msg">SDLC Agent v1.1 Initialized. Sandbox Ready.</div>
+        </div>
+        
+        <div class="editor-panel">
+            <div class="panel-label" id="file-name-label">FILE PREVIEW (Click a file to view)</div>
+            <textarea class="code-preview" id="code-viewer" readonly></textarea>
+        </div>
+
+        <div class="input-box">
+            <input type="text" id="task-input" placeholder="Instruction (e.g., 'Create python script to calculate pi')..." onkeypress="handleKey(event)">
+            <button id="send-btn" onclick="runAgent()">RUN</button>
+        </div>
     </div>
 
     <script>
-        async function pingAgent() {
-            const terminal = document.getElementById('terminal-output');
-            const status = document.getElementById('status-indicator');
-            
+        const API_BASE = "/api/v1";
+        const chatWindow = document.getElementById('chat-window');
+        
+        // 1. Initial Load
+        refreshFiles();
+
+        // 2. Refresh File Tree
+        async function refreshFiles() {
             try {
-                // Note: Port 8001 to avoid conflict with PM agent
-                const res = await fetch('http://localhost:8001/system/status');
+                // Ensure the path matches the backend router we set up in Step 2
+                const res = await fetch(`${API_BASE}/files/`); 
                 const data = await res.json();
+                const list = document.getElementById('file-list');
+                list.innerHTML = ""; // Clear
                 
-                terminal.innerHTML += `<div class="log-entry" style="color: #2ecc71">
-                    > CONNECTION ESTABLISHED<br>
-                    > ROLE: ${data.agent_role}<br>
-                    > MOUNT: ${data.sandbox_path}
-                    </div>`;
-                status.innerText = "🟢 " + data.mode;
-                status.style.color = "#2ecc71";
+                if(!data.files || data.files.length === 0) {
+                    list.innerHTML = "<div style='padding:10px; color:#666'>Empty Sandbox</div>";
+                    return;
+                }
+
+                data.files.forEach(f => {
+                    const item = document.createElement('div');
+                    item.className = 'file-item';
+                    const icon = f.type === 'folder' ? '📂' : '📄';
+                    item.innerHTML = `${icon} <span>${f.name}</span>`;
+                    item.onclick = () => viewFile(f.path, f.name);
+                    list.appendChild(item);
+                });
             } catch (e) {
-                terminal.innerHTML += `<div class="log-entry" style="color: #e74c3c">> CONNECTION FAILED</div>`;
-                status.innerText = "🔴 Offline";
-                status.style.color = "#e74c3c";
+                console.error("File fetch failed", e);
+                document.getElementById('file-list').innerText = "⚠️ Backend API Error";
             }
         }
+
+        // 3. View File Content
+        async function viewFile(path, name) {
+            document.getElementById('file-name-label').innerText = `PREVIEWing: ${name}`;
+            const res = await fetch(`${API_BASE}/files/content?path=${encodeURIComponent(path)}`);
+            const data = await res.json();
+            document.getElementById('code-viewer').value = data.content || "(Error reading file)";
+        }
+
+        // 4. Run Agent Logic
+        async function runAgent() {
+            const input = document.getElementById('task-input');
+            const btn = document.getElementById('send-btn');
+            const task = input.value.trim();
+            if(!task) return;
+
+            addMessage(task, 'user-msg');
+            input.value = "";
+            btn.disabled = true;
+            btn.innerText = "THINKING...";
+
+            try {
+                const res = await fetch(`${API_BASE}/dev/run`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ task: task })
+                });
+                
+                const data = await res.json();
+                
+                if(data.status === 'success') {
+                    // This response handles text even if empty string
+                    addMessage(data.response || "Task Completed.", 'agent-msg');
+                    refreshFiles(); 
+                } else {
+                    addMessage("❌ Error: " + data.response, 'system-msg');
+                }
+
+            } catch (e) {
+                addMessage("❌ Connection Error: " + e.message, 'system-msg');
+            }
+
+            btn.disabled = false;
+            btn.innerText = "RUN";
+        }
+
+        function addMessage(text, className) {
+            const msg = document.createElement('div');
+            msg.className = `message ${className}`;
+            // Use regex to format markdown blocks slightly better for HTML
+            let formatted = text.replace(/\n/g, '<br>').replace(/```/g, ''); 
+            msg.innerHTML = formatted;
+            chatWindow.appendChild(msg);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function handleKey(e) {
+            if(e.key === "Enter") runAgent();
+        }
+
+         // 1. Generate or Retrieve Session ID
+    let sessionId = localStorage.getItem("dev_session_id");
+    if (!sessionId) {
+        sessionId = "sess_" + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem("dev_session_id", sessionId);
+    }
+    
+    // Display Session ID for debugging
+    console.log("Current Session:", sessionId);
+    // Optional: Add to UI header
+    // document.querySelector('.header').innerHTML += ` <span style='font-size:10px;color:#555'>ID: ${sessionId}</span>`;
+
+    // ... (rest of your refreshFiles and viewFile functions remain same) ...
+
+    // 4. Update runAgent to send thread_id
+    async function runAgent() {
+        const input = document.getElementById('task-input');
+        const btn = document.getElementById('send-btn');
+        const task = input.value.trim();
+        if(!task) return;
+
+        addMessage(task, 'user-msg');
+        input.value = "";
+        btn.disabled = true;
+        btn.innerText = "THINKING...";
+
+        try {
+            const res = await fetch(`${API_BASE}/dev/run`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                // PASS THE SESSION ID
+                body: JSON.stringify({ 
+                    task: task,
+                    thread_id: sessionId 
+                })
+            });
+            
+            const data = await res.json();
+            
+            if(data.status === 'success') {
+                addMessage(data.response || "Task Completed.", 'agent-msg');
+                refreshFiles(); 
+            } else {
+                addMessage("❌ Error: " + data.response, 'system-msg');
+            }
+
+        } catch (e) {
+            addMessage("❌ Connection Error: " + e.message, 'system-msg');
+        }
+
+        btn.disabled = false;
+        btn.innerText = "RUN";
+    }
     </script>
 </body>
 </html>

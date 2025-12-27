@@ -1,16 +1,13 @@
 import aiosqlite
 import json
-import uuid
 from typing import List, Dict, Optional
-from app.core.config import settings
 
 DB_PATH = "./data/pm_agent.db"
 
 class DBService:
     async def initialize(self):
-        """Creates tables if they don't exist."""
         async with aiosqlite.connect(DB_PATH) as db:
-            # 1. Projects Table (Stores the Live Artifact)
+            # Existing Tables
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS projects (
                     thread_id TEXT PRIMARY KEY,
@@ -20,8 +17,6 @@ class DBService:
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
-            # 2. Messages Table (Stores Chat History)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,48 +27,49 @@ class DBService:
                     FOREIGN KEY(thread_id) REFERENCES projects(thread_id)
                 )
             """)
+            
+            # --- NEW: SETTINGS TABLE (The Vault) ---
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                )
+            """)
             await db.commit()
-            print(f"[INFO] Database initialized at {DB_PATH}")
+            print(f"[INFO] Database ready at {DB_PATH}")
 
-    async def create_or_update_project(self, thread_id: str, prd_content: str):
-        """Saves the latest PRD version."""
+    # --- SETTINGS METHODS ---
+    async def save_setting(self, key: str, value: str):
         async with aiosqlite.connect(DB_PATH) as db:
-            # Upsert logic (Insert or Update)
+            await db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+            await db.commit()
+
+    async def get_setting(self, key: str) -> Optional[str]:
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute("SELECT value FROM settings WHERE key = ?", (key,))
+            row = await cursor.fetchone()
+            return row[0] if row else None
+
+    # (Keep existing methods...)
+    async def create_or_update_project(self, thread_id: str, prd_content: str):
+        async with aiosqlite.connect(DB_PATH) as db:
             await db.execute("""
                 INSERT INTO projects (thread_id, current_prd, updated_at) 
                 VALUES (?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(thread_id) DO UPDATE SET 
-                    current_prd = excluded.current_prd,
-                    updated_at = CURRENT_TIMESTAMP
+                ON CONFLICT(thread_id) DO UPDATE SET current_prd = excluded.current_prd, updated_at = CURRENT_TIMESTAMP
             """, (thread_id, prd_content))
             await db.commit()
 
     async def add_message(self, thread_id: str, role: str, content: str):
-        """Logs a chat message."""
         async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("""
-                INSERT INTO messages (thread_id, role, content) 
-                VALUES (?, ?, ?)
-            """, (thread_id, role, content))
+            await db.execute("INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)", (thread_id, role, content))
             await db.commit()
 
     async def get_history(self, thread_id: str) -> List[Dict]:
-        """Retrieves full conversation context."""
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute("""
-                SELECT role, content FROM messages 
-                WHERE thread_id = ? 
-                ORDER BY id ASC
-            """, (thread_id,))
+            cursor = await db.execute("SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id ASC", (thread_id,))
             rows = await cursor.fetchall()
             return [{"role": row["role"], "content": row["content"]} for row in rows]
-
-    async def get_prd(self, thread_id: str) -> str:
-        """Gets the last saved PRD."""
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute("SELECT current_prd FROM projects WHERE thread_id = ?", (thread_id,))
-            row = await cursor.fetchone()
-            return row[0] if row else ""
 
 db_service = DBService()

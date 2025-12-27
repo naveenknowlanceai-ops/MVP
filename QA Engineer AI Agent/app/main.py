@@ -2,10 +2,10 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.routers import agent
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
-# 1. CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,22 +14,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Serve Frontend (The Coworking Interface)
+# Mount Frontend
 app.mount("/ui", StaticFiles(directory="frontend", html=True), name="frontend")
 
-# 3. Serve Evidence (Screenshots/Logs from Sandbox)
-app.mount("/evidence", StaticFiles(directory="sandbox/screenshots"), name="evidence")
+# Mount Evidence (Screenshots)
+app.mount("/sandbox", StaticFiles(directory="sandbox"), name="sandbox")
 
-# 4. Health Check
+# Register Router
+app.include_router(agent.router, prefix="/api/v1/agent", tags=["agent"])
+
 @app.get("/health")
 def health_check():
     return {
         "status": "active", 
-        "role": "QA Engineer", 
-        "modules": ["Vision", "Automation", "Reporting"]
+        "agent": "QA Engineer", 
+        "sandbox": settings.SANDBOX_PATH
     }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8001, reload=True) 
-    # Note: Using Port 8001 to avoid conflict with PM Agent (8000)
+    # PORT 8040 for QA Agent
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8040, reload=True)

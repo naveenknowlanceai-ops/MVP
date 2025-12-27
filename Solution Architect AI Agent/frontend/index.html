@@ -4,35 +4,109 @@
     <meta charset="UTF-8">
     <title>Solution Architect AI</title>
     <link rel="stylesheet" href="css/style.css">
-    <!-- Mermaid JS for diagrams -->
+    <!-- Import Mermaid.js for Live Diagrams -->
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({ startOnLoad: true });
+        mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+        window.mermaid = mermaid;
     </script>
 </head>
 <body>
+    <!-- SIDEBAR -->
     <div class="sidebar">
         <div class="brand">ARCHITECT AI</div>
-        <div class="status">System: <span id="sys-status">Checking...</span></div>
-        <hr>
-        <p style="font-size: 0.8em; color: #888;">Enter a software idea to generate a Tech Stack and HLD.</p>
+        
+        <div class="card">
+            <small>SYSTEM STATUS</small><br>
+            <span id="sys-status" style="color: yellow;">Connecting...</span>
+        </div>
+        
+        <div class="card">
+            <small>INTEGRATIONS</small><br>
+            <button onclick="toggleConfig()" class="btn-config">⚙️ Atlassian Setup</button>
+        </div>
+        
+        <div class="card">
+            <small>DESIGN APPROVAL</small><br>
+            <span id="approval-badge" class="badge">WAITING</span>
+        </div>
+
+        <div id="file-activity" style="margin-top:20px; font-size: 0.8em; color: #888;">
+            <!-- File system logs will go here -->
+        </div>
     </div>
 
+    <!-- WORKSPACE -->
     <div class="workspace">
+        
+        <!-- PANEL 1: CHAT & COMMANDS -->
         <div class="chat-panel">
             <div id="chat-history" class="history"></div>
             <div class="input-area">
-                <textarea id="user-input" placeholder="E.g., Design a scalable e-commerce backend..."></textarea>
-                <button id="send-btn">DESIGN</button>
+                <textarea id="user-input" placeholder="E.g., Check my Jira tickets and design the Auth Service..."></textarea>
+                <button id="send-btn">EXECUTE</button>
             </div>
         </div>
+        
+        <!-- PANEL 2: BLUEPRINTS & DIAGRAMS -->
         <div class="doc-panel">
-            <div class="toolbar">LIVE DESIGN DOC (Markdown)</div>
-            <textarea id="design-editor" placeholder="Architecture output appears here..."></textarea>
+            <div class="toolbar">
+                <button onclick="showTab('doc')" class="active-tab">📄 Design Doc</button>
+                <button onclick="showTab('diagram')">📊 Live Diagram</button>
+            </div>
+            
+            <!-- Tab 1: Text Editor -->
+            <textarea id="design-editor" class="tab-content" placeholder="Agent output will appear here..."></textarea>
+            
+            <!-- Tab 2: Visual Diagram -->
+            <div id="diagram-view" class="tab-content" style="display:none; height: 100%; background: #2d2d2d; overflow: auto; padding: 20px;">
+                <div class="mermaid" id="mermaid-canvas">
+                    graph TD; A[System] --> B[Waiting for Input...]
+                </div>
+            </div>
         </div>
     </div>
-    
-    <!-- Reuse JS/CSS from PM agent logic -->
+
+    <!-- CONFIGURATION MODAL -->
+    <div id="config-modal" class="modal">
+        <h3 style="color:#58a6ff; margin-top:0;">Atlassian Connect</h3>
+        
+        <label>Domain (e.g., company.atlassian.net)</label>
+        <input type="text" id="conf-domain" placeholder="your-domain.atlassian.net">
+        
+        <label>Email</label>
+        <input type="text" id="conf-email" placeholder="bot@company.com">
+        
+        <label>API Token</label>
+        <input type="password" id="conf-token">
+        
+        <label>Project Key (Jira)</label>
+        <input type="text" id="conf-project" placeholder="PROJ">
+        
+        <label>Space Key (Confluence)</label>
+        <input type="text" id="conf-space" placeholder="DSGN">
+        
+        <div style="margin-top: 15px; display: flex; gap: 10px;">
+            <button onclick="connectAtlassian()" style="background:#238636; color:white;">Connect</button>
+            <button onclick="toggleConfig()" style="background:#da3633; color:white;">Close</button>
+        </div>
+        <p id="conf-status" style="margin-top:10px; font-size:0.8em;"></p>
+    </div>
+
     <script src="js/app.js"></script>
+    
+    <!-- EMBEDDED CSS FOR MODAL & TABS -->
+    <style>
+        .modal {
+            display:none; position:fixed; top:50%; left:50%; 
+            transform:translate(-50%, -50%); background:#161b22; 
+            border:1px solid #444; padding:20px; z-index:1000; 
+            width:300px; box-shadow: 0 0 20px black; border-radius: 8px;
+        }
+        .modal input { width: 100%; margin-bottom: 10px; background: #0d1117; border: 1px solid #30363d; color: white; padding: 5px; }
+        .btn-config { width:100%; background:#21262d; color:#c9d1d9; border:1px solid #30363d; cursor: pointer; padding: 5px; }
+        .tab-content { flex: 1; border: none; outline: none; resize: none; }
+        .active-tab { background: #30363d !important; }
+    </style>
 </body>
 </html>

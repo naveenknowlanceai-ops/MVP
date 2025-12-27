@@ -2,172 +2,235 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>PM Agent</title>
+    <title>PM Agent | SDLC Platform</title>
     <style>
-        /* CSS STYLES */
-        body { margin: 0; display: flex; height: 100vh; background: #1e1e1e; color: #fff; font-family: 'Segoe UI', sans-serif; }
-        .sidebar { width: 220px; background: #252526; padding: 20px; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .brand { font-size: 1.2rem; font-weight: bold; color: #4A90E2; margin-bottom: 20px; }
-        .status { font-size: 0.9rem; margin-top: auto; color: #888; }
+        /* (Styles unchanged) */
+        body { margin: 0; display: flex; height: 100vh; background: #121212; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { width: 240px; background: #1e1e1e; padding: 20px; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .brand { font-size: 1.2rem; font-weight: bold; color: #4A90E2; margin-bottom: 30px; letter-spacing: 1px; }
+        .jira-panel { background: #252526; padding: 15px; border-radius: 8px; border: 1px solid #333; margin-bottom: 20px; }
+        .jira-status { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; margin-bottom: 10px; }
+        .indicator { width: 8px; height: 8px; border-radius: 50%; background: #444; }
+        .indicator.on { background: #4caf50; box-shadow: 0 0 5px #4caf50; }
+        .sys-status { font-size: 0.8rem; margin-top: auto; color: #666; }
         .workspace { flex: 1; display: flex; }
+        .chat-panel { width: 40%; display: flex; flex-direction: column; border-right: 1px solid #333; background: #121212; }
+        .doc-panel { flex: 1; display: flex; flex-direction: column; background: #181818; }
+        .history { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg { padding: 12px 16px; border-radius: 8px; max-width: 85%; line-height: 1.5; font-size: 0.95rem; }
+        .msg-user { background: #2d2d2d; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg-agent { background: #1e1e1e; align-self: flex-start; border-left: 3px solid #4A90E2; border-bottom-left-radius: 2px; }
+        .input-area { padding: 20px; background: #1e1e1e; border-top: 1px solid #333; display: flex; gap: 10px; }
+        textarea { border: 1px solid #333; background: #2d2d2d; color: #fff; padding: 10px; border-radius: 6px; resize: none; font-family: inherit; }
+        #user-input { flex: 1; height: 50px; }
+        .toolbar { padding: 10px 20px; background: #1e1e1e; border-bottom: 1px solid #333; display: flex; gap: 10px; align-items: center; }
+        #prd-editor { flex: 1; padding: 30px; background: #181818; line-height: 1.6; font-size: 14px; font-family: 'Consolas', monospace; color: #ccc; outline: none; border: none; }
+        #ticket-view { flex: 1; padding: 20px; overflow-y: auto; display: none; background: #181818; }
+        .ticket-card { background: #252526; border: 1px solid #333; padding: 15px; margin-bottom: 15px; border-radius: 6px; position: relative; }
+        .ticket-header { display: flex; justify-content: space-between; font-weight: bold; color: #4A90E2; margin-bottom: 8px; }
+        .ticket-meta { margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #888; }
+        button { background: #007acc; color: white; border: none; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
+        button:hover { background: #0062a3; }
+        button.secondary { background: transparent; border: 1px solid #444; color: #aaa; }
+        button.secondary:hover { border-color: #666; color: #fff; }
+        button.connect-btn { width: 100%; background: #333; border: 1px dashed #555; }
+        .overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:90; }
+        #jira-modal { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#252526; padding:25px; border:1px solid #444; border-radius:8px; z-index:100; width:350px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .form-group { margin-bottom:15px; }
+        .form-group label { display:block; margin-bottom:5px; font-size:0.85rem; color:#aaa; }
+        .form-group input { width:100%; padding:10px; background:#1e1e1e; border:1px solid #444; color:#fff; border-radius: 4px; box-sizing: border-box; }
         
-        /* Left: Chat */
-        .chat-panel { width: 40%; display: flex; flex-direction: column; border-right: 1px solid #333; background: #1e1e1e; }
-        .history { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .input-area { padding: 20px; border-top: 1px solid #333; display: flex; gap: 10px; background: #252526; }
-        
-        /* Right: Editor */
-        .doc-panel { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; }
-        .toolbar { padding: 10px 20px; background: #2d2d2d; border-bottom: 1px solid #333; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-        textarea { border: none; color: #fff; padding: 10px; resize: none; outline: none; border-radius: 4px; font-family: 'Consolas', monospace; }
-        
-        /* Inputs */
-        #user-input { flex: 1; height: 50px; background: #333; }
-        #prd-editor { flex: 1; padding: 20px; background: #1e1e1e; line-height: 1.6; font-size: 14px; }
-        button { background: #007acc; color: white; border: none; padding: 0 20px; cursor: pointer; border-radius: 4px; font-weight: bold; }
-        button:disabled { background: #444; cursor: not-allowed; }
-        button:hover:not(:disabled) { background: #0062a3; }
-
-        /* Messages */
-        .msg { padding: 10px 15px; border-radius: 6px; max-width: 90%; line-height: 1.4; }
-        .msg-user { background: #333; align-self: flex-end; }
-        .msg-agent { background: #252526; align-self: flex-start; border-left: 3px solid #007acc; }
-        .msg-error { background: #3e2020; border-left: 3px solid #ff4444; }
-        
-        /* Loading */
-        .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 5px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* CONFLUENCE MODAL */
+        #conf-modal { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#252526; padding:25px; border:1px solid #444; border-radius:8px; z-index:100; width:350px; }
     </style>
 </head>
 <body>
+    <div class="overlay" id="modal-overlay"></div>
 
     <div class="sidebar">
-        <div class="brand">PM AGENT <span style="font-weight:normal; font-size:0.8em">v1.0</span></div>
-        <div>
-            <div style="padding: 10px; background: #333; border-radius: 5px; margin-bottom: 5px;">📝 PRD Drafter</div>
+        <div class="brand">PM AGENT</div>
+        <div class="jira-panel">
+            <div style="font-size:0.8rem; color:#888; margin-bottom:10px;">ATLASSIAN CONNECTION</div>
+            <div id="jira-display-off">
+                <div class="jira-status"><div class="indicator"></div> Disconnected</div>
+                <button class="connect-btn" onclick="openJiraModal()">+ Connect</button>
+            </div>
+            <div id="jira-display-on" style="display:none">
+                <div class="jira-status"><div class="indicator on"></div> Connected</div>
+                <div style="font-size:0.75rem; color:#666; overflow:hidden; text-overflow:ellipsis" id="jira-user-email"></div>
+                <button class="secondary" onclick="openJiraModal()" style="width:100%; margin-top:10px; font-size:0.75rem">Configure</button>
+            </div>
         </div>
-        <div class="status">
-            System: <span id="sys-status" style="color: yellow">Connecting...</span>
-        </div>
+        <div class="sys-status">System: <span id="sys-status">Connecting...</span></div>
     </div>
 
     <div class="workspace">
-        <!-- LEFT: CHAT -->
         <div class="chat-panel">
             <div id="chat-history" class="history">
-                <div class="msg msg-agent">Hello! I am your Product Manager Agent. Describe a feature, and I will draft the specs using our internal best practices.</div>
+                <div class="msg msg-agent">Ready to build.</div>
             </div>
             <div class="input-area">
-                <textarea id="user-input" placeholder="E.g. Create a dark mode feature for the mobile app..." onkeypress="handleEnter(event)"></textarea>
-                <button id="send-btn" onclick="runAgent()">RUN</button>
+                <textarea id="user-input" placeholder="Describe feature..." onkeypress="handleEnter(event)"></textarea>
+                <button id="send-btn" onclick="runAgent('draft')">RUN</button>
             </div>
         </div>
 
-        <!-- RIGHT: EDITOR -->
         <div class="doc-panel">
             <div class="toolbar">
-                <span>📄 LIVE PRD</span>
-                <button style="font-size: 0.8rem; padding: 5px 10px; background: #4caf50;" onclick="download()">💾 Save .MD</button>
+                <button class="secondary" onclick="switchTab('prd')">📄 PRD</button>
+                <button class="secondary" onclick="switchTab('tickets')">🎫 Tickets</button>
+                <div style="flex:1"></div>
+                <!-- NEW BUTTON -->
+                <button onclick="openConfModal()" style="background: #205081; margin-right:5px">📘 Publish</button>
+                <button onclick="runAgent('tickets')" style="background: #e65100">⚡ Tickets</button>
             </div>
-            <textarea id="prd-editor" placeholder="The Agent will write the document here. You can edit this text manually to override the agent."></textarea>
+            <textarea id="prd-editor" placeholder="PRD goes here..."></textarea>
+            <div id="ticket-view"></div>
         </div>
     </div>
 
-   <script>
-        const API_URL = "http://localhost:8010/api/v1/agent/run";
-        
-        // --- SESSION MANAGEMENT ---
-        // Generate or retrieve a Thread ID from LocalStorage
-        let threadId = localStorage.getItem("pm_agent_thread_id");
-        if (!threadId) {
-            threadId = "session_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem("pm_agent_thread_id", threadId);
+    <!-- JIRA SETTINGS MODAL -->
+    <div id="jira-modal">
+        <h3 style="margin-top:0; color:#4A90E2;">Configuration</h3>
+        <div class="form-group"><label>Domain</label><input id="j-domain" placeholder="company.atlassian.net"></div>
+        <div class="form-group"><label>Email</label><input id="j-email" placeholder="user@company.com"></div>
+        <div class="form-group"><label>API Token</label><input id="j-token" type="password"></div>
+        <div class="form-group"><label>Project Key (Jira)</label><input id="j-project" placeholder="KAN"></div>
+        <button onclick="saveJira()" style="width:100%">Connect</button>
+        <button onclick="closeJiraModal()" class="secondary" style="width:100%; margin-top:10px">Cancel</button>
+    </div>
+
+    <!-- CONFLUENCE MODAL -->
+    <div id="conf-modal">
+        <h3 style="margin-top:0; color:#4A90E2;">Publish to Confluence</h3>
+        <div class="form-group"><label>Page Title</label><input id="c-title" placeholder="Feature Name"></div>
+        <div class="form-group"><label>Space Key</label><input id="c-space" placeholder="DS (Found in URL /wiki/spaces/DS/...)"></div>
+        <button onclick="publishConf()" id="btn-pub" style="width:100%">Publish Now</button>
+        <button onclick="closeConfModal()" class="secondary" style="width:100%; margin-top:10px">Cancel</button>
+    </div>
+
+    <script>
+        const API = "http://localhost:8010/api/v1/agent";
+        let threadId = localStorage.getItem("pm_t3") || "t_"+Date.now();
+        localStorage.setItem("pm_t3", threadId);
+        let currentTickets = [];
+
+        // INIT
+        fetch('http://localhost:8010/health').then(()=>document.getElementById('sys-status').innerText="ONLINE");
+        checkJiraStatus();
+
+        // CORE AGENT LOGIC (Keep existing)
+        async function runAgent(mode) {
+            const input = document.getElementById('user-input');
+            const editor = document.getElementById('prd-editor');
+            const btn = document.getElementById('send-btn');
+            
+            if(mode==='draft') { addMsg('User', input.value); input.value=""; btn.innerText="Thinking..."; }
+            else { switchTab('tickets'); document.getElementById('ticket-view').innerHTML='<div style="padding:20px;text-align:center">Generating...</div>'; }
+            
+            try {
+                const res = await fetch(`${API}/run`, {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({thread_id:threadId, task:input.value, current_prd:editor.value, mode})
+                });
+                const data = await res.json();
+                
+                if(mode==='draft') { editor.value=data.prd_content; addMsg('Agent','PRD Updated.'); btn.innerText="RUN"; }
+                else { currentTickets=data.tickets; renderTickets(); addMsg('Agent',`Generated ${data.tickets.length} tickets.`); }
+            } catch(e) { console.error(e); btn.innerText="RUN"; }
         }
-        console.log("Current Session:", threadId);
 
-        const statusEl = document.getElementById('sys-status');
-        const historyEl = document.getElementById('chat-history');
-        const inputEl = document.getElementById('user-input');
-        const editorEl = document.getElementById('prd-editor');
-        const btnEl = document.getElementById('send-btn');
-
-        // Health Check
-        fetch('http://localhost:8010/health')
-            .then(res => res.json())
-            .then(data => {
-                statusEl.innerText = "ONLINE";
-                statusEl.style.color = "#4caf50";
-            })
-            .catch(err => {
-                statusEl.innerText = "OFFLINE";
-                statusEl.style.color = "#ff4444";
-            });
-
-        function handleEnter(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                runAgent();
-            }
+        // --- CONFLUENCE LOGIC ---
+        function openConfModal() { 
+            // Auto-fill title from first line of PRD
+            const text = document.getElementById('prd-editor').value;
+            const firstLine = text.split('\n')[0].replace('#','').trim();
+            document.getElementById('c-title').value = firstLine || "New PRD";
+            
+            document.getElementById('conf-modal').style.display='block'; 
+            document.getElementById('modal-overlay').style.display='block'; 
         }
+        function closeConfModal() { document.getElementById('conf-modal').style.display='none'; document.getElementById('modal-overlay').style.display='none'; }
 
-        async function runAgent() {
-            const task = inputEl.value.trim();
-            const currentDoc = editorEl.value;
+        async function publishConf() {
+            const space = document.getElementById('c-space').value;
+            const title = document.getElementById('c-title').value;
+            const content = document.getElementById('prd-editor').value;
+            const btn = document.getElementById('btn-pub');
 
-            if (!task) return;
+            if(!space || !title) { alert("Space Key and Title required."); return; }
 
-            addMsg("User", task);
-            inputEl.value = "";
-            btnEl.disabled = true;
-            btnEl.innerHTML = '<span class="spinner"></span> Thinking...';
-            editorEl.style.opacity = "0.6";
+            btn.innerText = "Publishing...";
+            btn.disabled = true;
 
             try {
-                // PAYLOAD WITH THREAD_ID
-                const payload = {
-                    thread_id: threadId,
-                    task: task,
-                    current_prd: currentDoc
-                };
-
-                const response = await fetch(API_URL, {
+                const res = await fetch(`${API}/integrations/confluence/publish`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ space_key: space, title: title, content: content })
                 });
-
-                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-
-                const data = await response.json();
                 
-                editorEl.value = data.prd_content;
-                addMsg("Agent", "I have updated the PRD based on our conversation.");
-
-            } catch (error) {
-                console.error(error);
-                addMsg("Error", "Failed to contact Agent.");
-            } finally {
-                btnEl.disabled = false;
-                btnEl.innerText = "RUN";
-                editorEl.style.opacity = "1";
-            }
+                const data = await res.json();
+                
+                if(data.success) {
+                    alert("✅ Published Successfully!");
+                    window.open(data.url, '_blank');
+                    closeConfModal();
+                } else {
+                    alert("❌ Failed. Ensure Page Title is unique and Space Key is correct.");
+                }
+            } catch(e) { alert("Error connecting."); }
+            
+            btn.innerText = "Publish Now";
+            btn.disabled = false;
         }
 
-        function addMsg(role, text) {
-            const div = document.createElement('div');
-            div.className = `msg msg-${role.toLowerCase()}`;
-            div.innerText = text;
-            historyEl.appendChild(div);
-            historyEl.scrollTop = historyEl.scrollHeight;
+        // --- HELPERS (Same as before) ---
+        function switchTab(t) { document.getElementById('prd-editor').style.display = t==='prd'?'block':'none'; document.getElementById('ticket-view').style.display = t==='tickets'?'block':'none'; }
+        function addMsg(r,t) { const h=document.getElementById('chat-history'); const d=document.createElement('div'); d.className=`msg msg-${r.toLowerCase()}`; d.innerText=t; h.appendChild(d); h.scrollTop=h.scrollHeight; }
+        
+        // JIRA LOGIC (Same as before)
+        function openJiraModal() { document.getElementById('jira-modal').style.display='block'; document.getElementById('modal-overlay').style.display='block'; }
+        function closeJiraModal() { document.getElementById('jira-modal').style.display='none'; document.getElementById('modal-overlay').style.display='none'; }
+        async function saveJira() { /* ... */ } // (Re-use existing save logic)
+        async function checkJiraStatus() { /* ... */ } // (Re-use existing check logic)
+        function renderTickets() { /* ... */ } // (Re-use existing render logic)
+        function handlePush(i) { /* ... */ } // (Re-use existing push logic)
+        
+        // Re-injecting the full ticket functions for completeness in this copy/paste
+        async function handlePush(index) {
+            const t = currentTickets[index];
+            const btn = document.getElementById(`btn-${index}`);
+            btn.innerText="Pushing...";
+            try {
+                const res = await fetch(`${API}/integrations/jira/push`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({summary:t.summary, description:t.description, type:t.type}) });
+                const d = await res.json();
+                if(d.success) btn.innerHTML=`✅ <a href='${d.ticket_url}' target='_blank' style='color:white'>View</a>`;
+                else btn.innerText="Failed";
+            } catch(e) { btn.innerText="Error"; }
         }
-
-        function download() {
-            const blob = new Blob([editorEl.value], {type: 'text/markdown'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = "PRD_Draft.md";
-            a.click();
+        
+        function renderTickets() {
+            const v = document.getElementById('ticket-view'); v.innerHTML="";
+            currentTickets.forEach((t,i) => {
+                const c=document.createElement('div'); c.className="ticket-card";
+                c.innerHTML=`<div class="ticket-header"><span>${t.summary}</span><span style="background:#333;padding:2px 6px;border-radius:4px">${t.points} pts</span></div><div style="color:#aaa;font-size:0.9em;margin-bottom:10px">${t.description}</div><div class="ticket-meta"><span>${t.type}</span><button id="btn-${i}" onclick="handlePush(${i})">🚀 Push</button></div>`;
+                v.appendChild(c);
+            });
         }
+        
+        async function checkJiraStatus() {
+            try { const r=await fetch(`${API}/integrations/jira/status`); const d=await r.json(); 
+            if(d.is_connected) { document.getElementById('jira-display-off').style.display='none'; document.getElementById('jira-display-on').style.display='block'; document.getElementById('jira-user-email').innerText=d.email; }
+            } catch(e){}
+        }
+        
+        async function saveJira() {
+            const domain=document.getElementById('j-domain').value; const email=document.getElementById('j-email').value; const token=document.getElementById('j-token').value; const project=document.getElementById('j-project').value;
+            try { await fetch(`${API}/integrations/jira/connect`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain,email,token,project_key:project})}); alert("Connected!"); closeJiraModal(); checkJiraStatus(); } catch(e) { alert("Fail"); }
+        }
+        
+        function handleEnter(e) { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); runAgent('draft'); }}
     </script>
 </body>
 </html>
